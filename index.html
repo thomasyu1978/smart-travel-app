@@ -566,7 +566,7 @@
 
         resetBtn.addEventListener('click', () => { setupCamera(); });
 
-        playAudioBtn.addEventListener('click', async () => { const textToSpeak = resultDescription.textContent; if (!textToSpeak || playAudioBtn.disabled) return; playAudioBtn.disabled = true; playAudioBtnText.textContent = uiStrings.playBtnGenerating[currentLang]; try { const audioData = await callGeminiTTS(textToSpeak, currentLang); playAudio(audioData); playAudioBtnText.textContent = uiStrings.playBtnPlaying[currentLang]; } catch(error) { displayError(`${uiStrings.ttsError[currentLang]}: ${error.message}`); playAudioBtnText.textContent = uiStrings.playBtn[currentLang]; playAudioBtn.disabled = false; } });
+        playAudioBtn.addEventListener('click', async () => { if (!audioContext) {audioContext = new (window.AudioContext || window.webkitAudioContext)(); } if (audioContext.state === 'suspended') {audioContext.resume(); } const textToSpeak = resultDescription.textContent; if (!textToSpeak || playAudioBtn.disabled) return; playAudioBtn.disabled = true; playAudioBtnText.textContent = uiStrings.playBtnGenerating[currentLang]; try { const audioData = await callGeminiTTS(textToSpeak, currentLang); playAudio(audioData); playAudioBtnText.textContent = uiStrings.playBtnPlaying[currentLang]; } catch(error) { displayError(`${uiStrings.ttsError[currentLang]}: ${error.message}`); playAudioBtnText.textContent = uiStrings.playBtn[currentLang]; playAudioBtn.disabled = false; } });
 
         
 
@@ -1040,3 +1040,4 @@
 
 
 </html>
+
