@@ -374,7 +374,7 @@
 
             filterAll: { zh: '全部', en: 'All' }, filterAttraction: { zh: '景点', en: 'Sights' }, filterMuseum: { zh: '博物馆', en: 'Museums' }, filterFood: { zh: '餐饮', en: 'Food' }, filterHotel: { zh: '酒店', en: 'Hotels' },
 
-            plannerTitle: { zh: '定制您的专属行程', en: 'Create Your Custom Itinerary' },
+            plannerTitle: { zh: '定制您的专属行程', en: 'Create Your personal Itinerary' },
 
             destinationLabel: { zh: '目的地 (例如: 西雅图)', en: 'Destination (e.g., Seattle)' },
 
@@ -934,7 +934,7 @@
 
         async function callGeminiPlanner(destination, duration, budget, interests, lang) {
 
-            const prompt = `为一次前往"${destination}"的旅行创建一个为期"${duration}"天的详细行程。预算水平为"${budget}"，旅行者的兴趣是"${interests}"。请为每一天提供一个主题标题。对于每一天的行程，请列出至少3个活动（景点或餐厅），并包含以下信息：建议的时间（例如 "09:00"），活动类型（"attraction" 或 "food"），中文名称，英文名称，简短的中文描述，以及精确的纬度(lat)和经度(lon)。最后，为每一天提供中文的交通建议和中文的预估花费。`;
+            const prompt = `为一次前往"${destination}"的旅行创建一个为期"${duration}"天的详细行程。预算水平为"${budget}"，旅行者的兴趣是"${interests}"。请为每一天提供一个主题标题。对于每一天的行程，请列出至少3个活动（景点或餐厅），并包含以下信息：建议的时间（例如 "09:00"），活动类型（"attraction" 或 "food"），中文名称，英文名称，简短的中、英文描述，以及精确的纬度(lat)和经度(lon)。最后，为每一天提供中、英文的交通建议和中、英文的预估花费。`;
 
             const schema = {
 
@@ -1040,6 +1040,7 @@
 
 
 </html>
+
 
 
 
