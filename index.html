@@ -924,7 +924,7 @@
 
         // --- API Calls & Helpers ---
 
-        const API_KEY = "";
+        const API_KEY = "AIzaSyAYPqH91X9S3i7MOEBO9tPy7sKPAqBoZZc";
 
         function getDistance(coords1, coords2) { const R = 6371e3; const φ1 = coords1[0] * Math.PI/180; const φ2 = coords2[0] * Math.PI/180; const Δφ = (coords2[0]-coords1[0]) * Math.PI/180; const Δλ = (coords2[1]-coords1[1]) * Math.PI/180; const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2); const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c; }
 
@@ -1040,5 +1040,6 @@
 
 
 </html>
+
 
 
