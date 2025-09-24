@@ -1,1047 +1,542 @@
 <!DOCTYPE html>
-
 <html lang="zh-CN">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
     <title>智能旅行助手 (完整版)</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
-
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
     <!-- Leaflet Map Library -->
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <!-- Leaflet Routing Machine for Navigation -->
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
-
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
-
     <style>
-
         html, body {
-
             height: 100%;
-
             margin: 0;
-
             padding: 0;
-
             overflow: hidden;
-
         }
-
         body {
-
             font-family: 'Inter', 'Helvetica Neue', 'Arial', 'sans-serif';
-
             touch-action: manipulation;
-
         }
-
         .app-container {
-
             display: flex;
-
             flex-direction: column;
-
             height: 100vh;
-
             max-width: 800px;
-
         }
-
         .main-content {
-
             flex-grow: 1;
-
             overflow-y: auto;
-
             position: relative;
-
         }
-
         #camera-view, #map-view, #planner-view {
-
              height: 100%;
-
         }
-
         #map, #itinerary-map {
-
             height: 100%;
-
             width: 100%;
-
             background-color: #f0f0f0;
-
         }
-
         .loader {
-
             border-top-color: #3498db;
-
             animation: spin 1s linear infinite;
-
         }
-
         @keyframes spin {
-
             0% { transform: rotate(0deg); }
-
             100% { transform: rotate(360deg); }
-
         }
-
         .lang-btn.active, .nav-btn.active, .map-filter-btn.active {
-
             background-color: #3b82f6;
-
             color: white;
-
         }
-
         .nav-btn.active svg {
-
             color: white;
-
         }
-
         .interest-tag {
-
             transition: all 0.2s;
-
         }
-
         .interest-tag.selected {
-
             background-color: #3b82f6;
-
             color: white;
-
             transform: scale(1.05);
-
         }
-
         .leaflet-routing-container { display: none; }
-
         .day-plan-item.active { background-color: #e0f2fe; }
-
         #navigation-panel.show {
-
             transform: translateY(0);
-
         }
-
     </style>
-
 </head>
-
 <body class="bg-gray-100 flex items-center justify-center">
 
-
-
     <div class="app-container w-full bg-white shadow-lg mx-auto flex flex-col">
-
         <!-- Top Bar -->
-
         <header class="p-2 border-b flex justify-between items-center bg-white z-10 flex-shrink-0">
-
              <h1 id="app-title" class="text-lg font-bold text-gray-800" data-lang-key="appTitle"></h1>
-
              <div class="bg-gray-200 rounded-full p-1 flex space-x-1">
-
                 <button id="lang-zh" class="lang-btn px-3 py-1 text-xs font-semibold rounded-full">中文</button>
-
                 <button id="lang-en" class="lang-btn px-3 py-1 text-xs font-semibold rounded-full">English</button>
-
             </div>
-
         </header>
 
-
-
         <!-- Main Content Area -->
-
         <main class="main-content">
-
             <!-- View 1: Camera -->
-
             <div id="camera-view" class="hidden flex-col h-full">
-
                 <div class="text-center p-2 bg-gray-50"><p id="app-subtitle" class="text-gray-500 text-sm" data-lang-key="appSubtitle"></p></div>
-
                 <div class="flex-grow flex flex-col items-center justify-center bg-black relative overflow-hidden">
-
                     <video id="video" class="w-full h-full object-cover" playsinline autoplay muted></video>
-
                     <canvas id="canvas" class="hidden"></canvas>
-
                     <img id="result-image" class="hidden w-full h-full object-cover" alt="Captured image">
-
                     <div id="loader" class="hidden absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"><div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24"></div></div>
-
                 </div>
-
                 <div id="camera-controls" class="p-4 flex flex-col items-center space-y-3 bg-white">
-
                     <button id="capture-btn" class="w-full max-w-xs bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400" data-lang-key="captureBtn"></button>
-
                     <button id="reset-btn" class="hidden w-full max-w-xs bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600" data-lang-key="resetBtn"></button>
-
                 </div>
-
                 <div id="result-container" class="hidden p-4 bg-gray-50 absolute bottom-0 left-0 right-0 bg-opacity-95">
-
                     <h2 id="result-title" class="text-xl font-bold text-gray-900"></h2>
-
                     <p id="result-description" class="mt-2 text-gray-700 text-sm max-h-24 overflow-y-auto"></p>
-
                     <button id="play-audio-btn" class="mt-4 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 disabled:bg-gray-400 flex items-center justify-center"><svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path></svg><span data-lang-key="playBtn"></span></button>
-
                 </div>
-
             </div>
-
-
 
             <!-- View 2: Map -->
-
             <div id="map-view" class="hidden relative">
-
                 <div id="map-filters" class="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] bg-white bg-opacity-80 rounded-full p-1 flex space-x-1 shadow-lg"><button class="map-filter-btn px-3 py-1 text-xs font-semibold rounded-full" data-filter="all" data-lang-key="filterAll"></button><button class="map-filter-btn px-3 py-1 text-xs font-semibold rounded-full" data-filter="attraction" data-lang-key="filterAttraction"></button><button class="map-filter-btn px-3 py-1 text-xs font-semibold rounded-full" data-filter="museum" data-lang-key="filterMuseum"></button><button class="map-filter-btn px-3 py-1 text-xs font-semibold rounded-full" data-filter="food" data-lang-key="filterFood"></button><button class="map-filter-btn px-3 py-1 text-xs font-semibold rounded-full" data-filter="hotel" data-lang-key="filterHotel"></button></div>
-
                 <div id="map"></div>
-
                 <div id="map-loader" class="hidden absolute inset-0 bg-white bg-opacity-75 flex-col items-center justify-center z-[1000]"><div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16 mb-4"></div><p id="map-loading-text" class="text-gray-600 font-semibold" data-lang-key="mapLoading"></p></div>
-
                  <!-- Navigation Panel -->
-
                 <div id="navigation-panel" class="absolute bottom-0 left-0 right-0 bg-white p-4 shadow-lg rounded-t-2xl z-[1001] transform translate-y-full transition-transform duration-300 ease-in-out">
-
                     <div class="flex justify-between items-center mb-3">
-
                         <h3 id="nav-destination-title" class="font-bold text-lg text-gray-800"></h3>
-
                         <button id="close-nav-panel-btn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
-
                     </div>
-
                     <div id="nav-options-container" class="space-y-2">
-
                         <!-- Navigation options will be injected here by JavaScript -->
-
                     </div>
-
                 </div>
-
             </div>
-
             
-
             <!-- View 3: Itinerary Planner -->
-
             <div id="planner-view" class="flex flex-col h-full bg-gray-50">
-
                 <!-- Form View -->
-
                 <div id="planner-form-view" class="p-4 space-y-4 overflow-y-auto">
-
                     <h2 class="text-xl font-bold text-gray-800" data-lang-key="plannerTitle"></h2>
-
                     <div><label class="block text-sm font-medium text-gray-700" data-lang-key="destinationLabel"></label><input id="destination-input" type="text" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></div>
-
                     <div><label class="block text-sm font-medium text-gray-700" data-lang-key="durationLabel"></label><input id="duration-input" type="number" min="1" max="10" value="3" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></div>
-
                     <div><label class="block text-sm font-medium text-gray-700" data-lang-key="budgetLabel"></label><select id="budget-select" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"><option value="economy" data-lang-key="budgetEconomy"></option><option value="comfortable" selected data-lang-key="budgetComfortable"></option><option value="luxury" data-lang-key="budgetLuxury"></option></select></div>
-
                     <div><label class="block text-sm font-medium text-gray-700 mb-2" data-lang-key="interestsLabel"></label><div id="interests-container" class="flex flex-wrap gap-2"></div></div>
-
                     <button id="generate-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400" data-lang-key="generateBtn"></button>
-
                 </div>
-
                 <!-- Result View -->
-
                 <div id="itinerary-result-view" class="hidden flex-1 flex flex-col">
-
                     <div class="p-2 border-b flex justify-between items-center"><button id="back-to-form-btn" class="text-blue-600 font-semibold" data-lang-key="backBtn"></button><h2 id="itinerary-title" class="text-lg font-bold"></h2><div></div></div>
-
                     <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
-
                         <div id="itinerary-details" class="w-full md:w-1/2 p-2 overflow-y-auto"></div>
-
                         <div id="itinerary-map-container" class="w-full md:w-1/2 h-64 md:h-full"><div id="itinerary-map"></div></div>
-
                     </div>
-
                 </div>
-
                  <!-- Planner Loader -->
-
                 <div id="planner-loader" class="hidden absolute inset-0 bg-white bg-opacity-80 flex-col items-center justify-center z-20"><div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16 mb-4"></div><p class="text-gray-600 font-semibold" data-lang-key="generatingItinerary"></p></div>
-
             </div>
-
         </main>
 
-
-
         <!-- Error Message -->
-
         <div id="error-message" class="hidden p-4 bg-red-100 text-red-700 text-center absolute bottom-16 left-4 right-4 rounded-lg shadow-lg z-20"></div>
 
-
-
         <!-- Bottom Navigation -->
-
         <nav class="flex justify-around p-2 border-t bg-white flex-shrink-0 z-10">
-
             <button id="nav-vision" class="nav-btn flex flex-col items-center text-gray-600 w-full rounded-lg py-1"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-xs font-medium" data-lang-key="navVision"></span></button>
-
             <button id="nav-explore" class="nav-btn flex flex-col items-center text-gray-600 w-full rounded-lg py-1"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-xs font-medium" data-lang-key="navExplore"></span></button>
-
             <button id="nav-planner" class="nav-btn flex flex-col items-center text-gray-600 w-full rounded-lg py-1"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 16.382V5.618a1 1 0 00-1.447-.894L15 7m-6 3l6-3m0 0l6-3m-6 3V4"></path></svg><span class="text-xs font-medium" data-lang-key="navPlanner"></span></button>
-
         </nav>
-
     </div>
 
-
-
     <script>
-
         // --- DOM Elements ---
-
         const video = document.getElementById('video'), canvas = document.getElementById('canvas'), resultImage = document.getElementById('result-image'), captureBtn = document.getElementById('capture-btn'), resetBtn = document.getElementById('reset-btn'), loader = document.getElementById('loader'), resultContainer = document.getElementById('result-container'), resultTitle = document.getElementById('result-title'), resultDescription = document.getElementById('result-description'), playAudioBtn = document.getElementById('play-audio-btn'), playAudioBtnText = playAudioBtn.querySelector('span'), errorMessage = document.getElementById('error-message'), langZhBtn = document.getElementById('lang-zh'), langEnBtn = document.getElementById('lang-en');
-
         const navVisionBtn = document.getElementById('nav-vision'), navExploreBtn = document.getElementById('nav-explore'), navPlannerBtn = document.getElementById('nav-planner');
-
         const cameraView = document.getElementById('camera-view'), mapView = document.getElementById('map-view'), plannerView = document.getElementById('planner-view');
-
         const mapLoader = document.getElementById('map-loader'), mapFilterButtons = document.querySelectorAll('.map-filter-btn');
-
         const plannerFormView = document.getElementById('planner-form-view'), itineraryResultView = document.getElementById('itinerary-result-view'), generateBtn = document.getElementById('generate-btn'), plannerLoader = document.getElementById('planner-loader'), destinationInput = document.getElementById('destination-input'), durationInput = document.getElementById('duration-input'), budgetSelect = document.getElementById('budget-select'), interestsContainer = document.getElementById('interests-container'), itineraryDetails = document.getElementById('itinerary-details'), itineraryMapContainer = document.getElementById('itinerary-map-container'), backToFormBtn = document.getElementById('back-to-form-btn'), itineraryTitle = document.getElementById('itinerary-title');
-
         const navigationPanel = document.getElementById('navigation-panel'), navDestinationTitle = document.getElementById('nav-destination-title'), navOptionsContainer = document.getElementById('nav-options-container'), closeNavPanelBtn = document.getElementById('close-nav-panel-btn');
 
-
-
         // --- State ---
-
         let currentStream, audioContext, currentLang = 'zh';
-
         let map, mapInitialized = false, userCoords, routingControl, poiMarkersLayer, itineraryMap, itineraryRoutingControl, currentItinerary;
 
-
-
         // --- Localization Strings ---
-
         const uiStrings = {
-
             appTitle: { zh: '智能旅行助手', en: 'Smart Travel Guide' },
-
             appSubtitle: { zh: '对准景点，拍照识别。', en: 'Point, capture, and discover.' },
-
             captureBtn: { zh: '拍照识别', en: 'Capture & Identify' },
-
             resetBtn: { zh: '重新识别', en: 'Identify Another' },
-
             playBtn: { zh: '播放语音解说', en: 'Play Audio Guide' },
-
             playBtnGenerating: { zh: '正在生成...', en: 'Generating...' },
-
             playBtnPlaying: { zh: '正在播放...', en: 'Playing...' },
-
             navVision: { zh: 'AI识景', en: 'Vision AI' },
-
             navExplore: { zh: '周边探索', en: 'Explore Nearby' },
-
             navPlanner: { zh: '行程规划', en: 'Planner' },
-
             mapLoading: { zh: '正在定位和加载地图...', en: 'Locating and loading map...' },
-
             navigateBtn: { zh: '前往这里', en: 'Go Here' },
-
             filterAll: { zh: '全部', en: 'All' }, filterAttraction: { zh: '景点', en: 'Sights' }, filterMuseum: { zh: '博物馆', en: 'Museums' }, filterFood: { zh: '餐饮', en: 'Food' }, filterHotel: { zh: '酒店', en: 'Hotels' },
-
-            plannerTitle: { zh: '定制您的专属行程', en: 'Create Your personal Itinerary' },
-
+            plannerTitle: { zh: '定制您的专属行程', en: 'Create Your Personal Itinerary' },
             destinationLabel: { zh: '目的地 (例如: 西雅图)', en: 'Destination (e.g., Seattle)' },
-
             durationLabel: { zh: '旅行天数', en: 'Duration (days)' },
-
             budgetLabel: { zh: '预算', en: 'Budget' },
-
             budgetEconomy: { zh: '经济', en: 'Economy' }, budgetComfortable: { zh: '舒适', en: 'Comfortable' }, budgetLuxury: { zh: '豪华', en: 'Luxury' },
-
             interestsLabel: { zh: '兴趣偏好', en: 'Interests' },
-
             generateBtn: { zh: '生成智能行程', en: 'Generate Smart Itinerary' },
-
             generatingItinerary: { zh: 'AI正在为您规划...', en: 'AI is planning your trip...' },
-
             backBtn: { zh: '返回修改', en: 'Back to Edit' },
-
             directionsTo: { zh: '导航至', en: 'Directions to' },
-
             transportWalk: { zh: '步行', en: 'Walk' },
-
             transportDrive: { zh: '驾车', en: 'Drive' },
-
             transportTransit: { zh: '公交', en: 'Transit' },
-
             timeMinutes: { zh: '分钟', en: 'min' },
-
             transitDetails: { zh: '公交详情', en: 'Transit Details' },
-
             backToOptions: { zh: '返回选项', en: 'Back to Options' },
-
             walkTo: { zh: '步行至', en: 'Walk to' },
-
             takeBus: { zh: '乘坐', en: 'Take' },
-
             getOffAt: { zh: '在', en: 'Get off at' },
-
             stops: { zh: '站', en: 'stops' },
-
             cameraError: { zh: '无法访问摄像头。请检查浏览器权限。', en: 'Cannot access camera. Please check permissions.' },
-
             locationError: { zh: '无法获取您的位置。', en: 'Could not get your location.' },
-
             recognitionError: { zh: '识别失败', en: 'Recognition failed' },
-
             ttsError: { zh: '语音生成失败', en: 'Audio generation failed' },
-
             plannerError: { zh: '行程生成失败', en: 'Failed to generate itinerary' },
-
             plannerInputError: { zh: '请输入目的地。', en: 'Please enter a destination.' },
-
         };
-
         const interests = {
-
             history: { zh: '历史古迹', en: 'History' },
-
             nature: { zh: '自然风光', en: 'Nature' },
-
             food: { zh: '美食探店', en: 'Foodie' },
-
             art: { zh: '艺术文化', en: 'Art & Culture' },
-
             shopping: { zh: '购物', en: 'Shopping' },
-
             family: { zh: '亲子活动', en: 'Family Fun' },
-
         };
-
         const samplePOIs = [
-
             { lat: 47.6205, lon: -122.3493, type: 'attraction', name_zh: '太空针塔', name_en: 'Space Needle', desc_zh: '西雅图的标志性建筑。', desc_en: 'Seattle\'s iconic observation tower.' },
-
             { lat: 47.6134, lon: -122.3321, type: 'attraction', name_zh: '派克市场', name_en: 'Pike Place Market', desc_zh: '著名的农贸市场，有飞鱼表演。', desc_en: 'Famous public market with fish throwing.' },
-
             { lat: 47.6215, lon: -122.3516, type: 'museum', name_zh: '奇胡利玻璃艺术园', name_en: 'Chihuly Garden and Glass', desc_zh: '展示艺术家戴尔·奇胡利玻璃作品。', desc_en: 'Museum for Dale Chihuly\'s glass work.' },
-
             { lat: 47.6220, lon: -122.3481, type: 'museum', name_zh: '流行文化博物馆', name_en: 'Museum of Pop Culture', desc_zh: '致力于当代流行文化的博物馆。', desc_en: 'A museum dedicated to pop culture.' },
-
             { lat: 47.6152, lon: -122.3524, type: 'food', name_zh: 'Dick\'s Drive-In', name_en: 'Dick\'s Drive-In', desc_zh: '西雅图本地著名的快餐连锁店。', desc_en: 'A famous local fast-food chain.' },
-
             { lat: 47.6145, lon: -122.3415, type: 'food', name_zh: 'The Pink Door', name_en: 'The Pink Door', desc_zh: '一家受欢迎的意大利餐厅。', desc_en: 'A popular Italian-American restaurant.' },
-
             { lat: 47.6253, lon: -122.3494, type: 'hotel', name_zh: '地中海酒店', name_en: 'The Mediterranean Inn', desc_zh: '拥有屋顶露台，享有城市美景。', desc_en: 'Features a rooftop patio with city views.' },
-
             { lat: 47.6097, lon: -122.3361, type: 'hotel', name_zh: '四季酒店', name_en: 'Four Seasons Hotel', desc_zh: '一家豪华的五星级酒店。', desc_en: 'A luxury five-star hotel.' }
-
         ];
 
-
-
         // --- Language, UI & View Switching ---
-
         function setLanguage(lang) {
-
             currentLang = lang;
-
             document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
-
             document.querySelectorAll('[data-lang-key]').forEach(el => {
-
                 const key = el.dataset.langKey;
-
                 if (uiStrings[key]?.[currentLang]) el.textContent = uiStrings[key][currentLang];
-
             });
-
             langZhBtn.classList.toggle('active', lang === 'zh');
-
             langEnBtn.classList.toggle('active', lang === 'en');
-
             setupInterestTags();
-
             if(currentItinerary) displayItinerary(currentItinerary); // Re-render itinerary in new lang
-
             hideError();
-
         }
-
         function showView(viewName) {
-
             hideError();
-
             resultContainer.classList.add('hidden');
-
             [cameraView, mapView, plannerView].forEach(v => v.classList.add('hidden'));
-
             [navVisionBtn, navExploreBtn, navPlannerBtn].forEach(b => b.classList.remove('active'));
-
             hideNavigationPanel();
-
             
-
             if (viewName === 'camera') {
-
                 cameraView.classList.remove('hidden');
-
                 navVisionBtn.classList.add('active');
-
                 stopMap(); stopItineraryMap(); setupCamera();
-
             } else if (viewName === 'map') {
-
                 mapView.classList.remove('hidden');
-
                 navExploreBtn.classList.add('active');
-
                 stopCamera(); stopItineraryMap(); initMap();
-
             } else if (viewName === 'planner') {
-
                 plannerView.classList.remove('hidden');
-
                 navPlannerBtn.classList.add('active');
-
                 stopCamera(); stopMap();
-
             }
-
         }
-
         function displayError(message) {
-
             errorMessage.textContent = message;
-
             errorMessage.classList.remove('hidden');
-
             setTimeout(hideError, 4000);
-
         }
-
-
 
         function hideError() {
-
             errorMessage.classList.add('hidden');
-
         }
 
-
-
-        // --- Camera Logic --- (Omitted for brevity, unchanged)
-
+        // --- Camera Logic ---
         function stopCamera() { if (currentStream) { currentStream.getTracks().forEach(track => track.stop()); currentStream = null; } }
-
         async function setupCamera() { if (currentStream) return; try { const constraints = { video: { facingMode: 'environment' } }; currentStream = await navigator.mediaDevices.getUserMedia(constraints); video.srcObject = currentStream; captureBtn.disabled = false; video.classList.remove('hidden'); resultImage.classList.add('hidden'); captureBtn.classList.remove('hidden'); resetBtn.classList.add('hidden'); resultContainer.classList.add('hidden'); } catch (err) { displayError(uiStrings.cameraError[currentLang]); captureBtn.disabled = true; } }
-
         captureBtn.addEventListener('click', async () => { hideError(); loader.classList.remove('hidden'); captureBtn.disabled = true; const context = canvas.getContext('2d'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; context.drawImage(video, 0, 0, canvas.width, canvas.height); const imageDataUrl = canvas.toDataURL('image/jpeg'); resultImage.src = imageDataUrl; video.classList.add('hidden'); resultImage.classList.remove('hidden'); captureBtn.classList.add('hidden'); resetBtn.classList.remove('hidden'); try { const base64ImageData = imageDataUrl.split(',')[1]; const analysisText = await callGeminiVision(base64ImageData, currentLang); const { title, description } = parseAnalysis(analysisText, currentLang); resultTitle.textContent = title; resultDescription.textContent = description; resultContainer.classList.remove('hidden'); resetBtn.classList.remove('hidden'); } catch(error) { displayError(`${uiStrings.recognitionError[currentLang]}: ${error.message}`); resetBtn.classList.remove('hidden'); } finally { loader.classList.add('hidden'); captureBtn.disabled = false; stopCamera(); } });
-
         resetBtn.addEventListener('click', () => { setupCamera(); });
-
         playAudioBtn.addEventListener('click', async () => { if (!audioContext) {audioContext = new (window.AudioContext || window.webkitAudioContext)(); } if (audioContext.state === 'suspended') {audioContext.resume(); } const textToSpeak = resultDescription.textContent; if (!textToSpeak || playAudioBtn.disabled) return; playAudioBtn.disabled = true; playAudioBtnText.textContent = uiStrings.playBtnGenerating[currentLang]; try { const audioData = await callGeminiTTS(textToSpeak, currentLang); playAudio(audioData); playAudioBtnText.textContent = uiStrings.playBtnPlaying[currentLang]; } catch(error) { displayError(`${uiStrings.ttsError[currentLang]}: ${error.message}`); playAudioBtnText.textContent = uiStrings.playBtn[currentLang]; playAudioBtn.disabled = false; } });
-
         
-
         // --- Map & Navigation Logic ---
-
         function stopMap() { 
-
             if (map) { 
-
                 map.remove(); 
-
                 map = null; 
-
                 mapInitialized = false; 
-
                 routingControl = null;
-
             } 
-
         }
-
         function initMap() { if (mapInitialized) return; mapLoader.classList.remove('hidden'); navigator.geolocation.getCurrentPosition(position => { userCoords = [position.coords.latitude, position.coords.longitude]; setupMap(userCoords); }, () => { displayError(uiStrings.locationError[currentLang]); userCoords = [47.6205, -122.3493]; setupMap(userCoords); }, { timeout: 10000 }); }
-
         function setupMap(coords) { mapInitialized = true; map = L.map('map').setView(coords, 14); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map); L.marker(coords, { icon: L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', shadowSize: [41, 41] }) }).addTo(map).bindPopup(currentLang === 'zh' ? '您在这里' : 'You are here').openPopup(); poiMarkersLayer = L.layerGroup().addTo(map); addPoiMarkers('all'); mapFilterButtons.forEach(button => { if (button.dataset.filter === 'all') button.classList.add('active'); button.addEventListener('click', () => { hideNavigationPanel(); if (routingControl) map.removeControl(routingControl); mapFilterButtons.forEach(btn => btn.classList.remove('active')); button.classList.add('active'); addPoiMarkers(button.dataset.filter); }); }); mapLoader.classList.add('hidden'); }
-
         function addPoiMarkers(filter) { poiMarkersLayer.clearLayers(); const filteredPOIs = filter === 'all' ? samplePOIs : samplePOIs.filter(poi => poi.type === filter); const poiIcons = { attraction: 'https://placehold.co/32x32/8b5cf6/ffffff?text=🏛️', museum: 'https://placehold.co/32x32/d946ef/ffffff?text=🖼️', food: 'https://placehold.co/32x32/f97316/ffffff?text=🍔', hotel: 'https://placehold.co/32x32/14b8a6/ffffff?text=🏨', }; filteredPOIs.forEach(poi => { const customIcon = L.icon({ iconUrl: poiIcons[poi.type], iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32], }); const marker = L.marker([poi.lat, poi.lon], {icon: customIcon}).addTo(poiMarkersLayer); const popupContent = document.createElement('div'); popupContent.innerHTML = `<h3 class="font-bold text-base">${poi['name_' + currentLang]}</h3><p class="text-sm text-gray-600 my-2">${poi['desc_' + currentLang]}</p>`; const navButton = document.createElement('button'); navButton.textContent = uiStrings.navigateBtn[currentLang]; navButton.className = 'w-full bg-blue-500 text-white text-sm font-semibold py-1 px-3 rounded-md hover:bg-blue-600'; navButton.onclick = () => { showNavigationOptions([poi.lat, poi.lon], poi['name_' + currentLang]); marker.closePopup(); }; popupContent.appendChild(navButton); marker.bindPopup(popupContent); }); }
-
         function drawRoute(destinationCoords) { if (routingControl) map.removeControl(routingControl); routingControl = L.Routing.control({ waypoints: [ L.latLng(userCoords[0], userCoords[1]), L.latLng(destinationCoords[0], destinationCoords[1]) ], routeWhileDragging: false, addWaypoints: false, draggableWaypoints: false, fitSelectedRoutes: true, show: false, lineOptions: { styles: [{color: 'blue', opacity: 0.8, weight: 6}] }, createMarker: function() { return null; } }).addTo(map); }
-
         function showNavigationOptions(destinationCoords, destinationName) {
-
             navDestinationTitle.textContent = `${uiStrings.directionsTo[currentLang]} ${destinationName}`;
-
             const distance = getDistance(userCoords, destinationCoords);
-
             const walkTime = Math.ceil(distance / 1.4 / 60);
-
             const driveTime = Math.ceil((distance * 1.4) / 8.3 / 60); // Adjusted for city driving
-
             const transitTime = Math.ceil((distance * 1.3) / 5.5 / 60) + 8; // Includes wait time
-
             const options = [
-
                 { mode: 'walk', time: walkTime, name: uiStrings.transportWalk[currentLang], icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" /></svg>' },
-
                 { mode: 'drive', time: driveTime, name: uiStrings.transportDrive[currentLang], icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 6l12-3" /></svg>' },
-
                 { mode: 'transit', time: transitTime, name: uiStrings.transportTransit[currentLang], icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H3" /></svg>' }
-
             ];
-
             navOptionsContainer.innerHTML = '';
-
             options.forEach(opt => {
-
                 const optEl = document.createElement('button');
-
                 optEl.className = 'w-full flex items-center p-3 bg-gray-100 rounded-lg hover:bg-gray-200';
-
                 optEl.innerHTML = `${opt.icon}<span class="font-semibold">${opt.name}</span><span class="ml-auto text-gray-600">~${opt.time} ${uiStrings.timeMinutes[currentLang]}</span>`;
-
                 optEl.onclick = () => {
-
                     if (opt.mode === 'transit') {
-
                         showTransitDetails(destinationCoords, destinationName);
-
                     } else {
-
                         drawRoute(destinationCoords);
-
                         hideNavigationPanel();
-
                     }
-
                 };
-
                 navOptionsContainer.appendChild(optEl);
-
             });
-
             navigationPanel.classList.add('show');
-
         }
-
         function showTransitDetails(destinationCoords, destinationName) {
-
             navOptionsContainer.innerHTML = '';
-
-            
-
             const backButton = document.createElement('button');
-
             backButton.className = 'w-full flex items-center p-2 mb-2 text-blue-600 font-semibold';
-
             backButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg> ${uiStrings.backToOptions[currentLang]}`;
-
             backButton.onclick = () => showNavigationOptions(destinationCoords, destinationName);
-
             navOptionsContainer.appendChild(backButton);
 
-
-
             // SIMULATED transit data
-
             const steps = [
-
                 { type: 'walk', instruction: `${uiStrings.walkTo[currentLang]} 3rd Ave & Pine St`, duration: 3, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" /></svg>' },
-
                 { type: 'bus', instruction: `${uiStrings.takeBus[currentLang]} D Line`, duration: 12, details: `5 ${uiStrings.stops[currentLang]}`, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h8a1 1 0 001-1z" /></svg>' },
-
                 { type: 'walk', instruction: `${uiStrings.getOffAt[currentLang]} Denny Way & Queen Anne Ave N, ${uiStrings.walkTo[currentLang]} ${destinationName}`, duration: 5, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" /></svg>' },
-
             ];
 
-
-
             steps.forEach(step => {
-
                 const stepEl = document.createElement('div');
-
                 stepEl.className = 'flex items-start my-2';
-
                 const iconBgClass = step.type === 'bus' ? 'bg-blue-500' : 'bg-gray-200';
-
                 stepEl.innerHTML = `
-
                     <div class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full ${iconBgClass} mr-4 mt-1">
-
                         ${step.icon}
-
                     </div>
-
                     <div>
-
                         <p class="font-semibold text-gray-800">${step.instruction}</p>
-
                         <p class="text-sm text-gray-500">~${step.duration} ${uiStrings.timeMinutes[currentLang]} ${step.details ? `(${step.details})` : ''}</p>
-
                     </div>
-
                 `;
-
                 navOptionsContainer.appendChild(stepEl);
-
             });
-
             drawRoute(destinationCoords);
-
         }
-
         function hideNavigationPanel() { navigationPanel.classList.remove('show'); }
-
         closeNavPanelBtn.addEventListener('click', hideNavigationPanel);
 
-
-
         // --- Itinerary Planner Logic ---
-
         function setupInterestTags() { interestsContainer.innerHTML = ''; Object.keys(interests).forEach(key => { const tag = document.createElement('button'); tag.className = 'interest-tag px-3 py-1 text-sm font-semibold rounded-full bg-gray-200 text-gray-700'; tag.dataset.interest = key; tag.textContent = interests[key][currentLang]; tag.onclick = () => tag.classList.toggle('selected'); interestsContainer.appendChild(tag); }); }
-
+        
         generateBtn.addEventListener('click', async () => {
-
             const destination = destinationInput.value;
-
             if (!destination) { displayError(uiStrings.plannerInputError[currentLang]); return; }
-
             plannerLoader.classList.remove('hidden');
-
             const duration = durationInput.value;
-
             const budget = budgetSelect.options[budgetSelect.selectedIndex].text;
-
             const selectedInterests = Array.from(document.querySelectorAll('.interest-tag.selected')).map(tag => tag.textContent).join(', ');
-
             try {
-
                 const result = await callGeminiPlanner(destination, duration, budget, selectedInterests, currentLang);
-
                 currentItinerary = result;
-
                 itineraryTitle.textContent = currentLang === 'zh' ? `${destination} ${duration}日游` : `${duration}-Day Trip to ${destination}`;
-
                 displayItinerary(currentItinerary);
-
                 plannerFormView.classList.add('hidden');
-
                 itineraryResultView.classList.remove('hidden');
-
                 initItineraryMap();
-
             } catch (error) {
-
                 console.error("Planner API call failed:", error);
-
                 displayError(`${uiStrings.plannerError[currentLang]}: ${error.message}`);
-
             } finally {
-
                 plannerLoader.classList.add('hidden');
-
             }
-
         });
 
         backToFormBtn.addEventListener('click', () => { plannerFormView.classList.remove('hidden'); itineraryResultView.classList.add('hidden'); stopItineraryMap(); });
-
+        
+        // BUG FIX: MODIFIED displayItinerary FUNCTION
         function displayItinerary(itineraryData) {
-
             itineraryDetails.innerHTML = '';
-
             itineraryData.itinerary.forEach((dayPlan, index) => {
-
                 const dayDiv = document.createElement('div');
-
                 dayDiv.className = 'day-plan-item border rounded-lg p-3 mb-3 cursor-pointer hover:bg-gray-100';
-
                 dayDiv.onclick = () => {
-
                     drawItineraryRoute(dayPlan.activities);
-
                     document.querySelectorAll('.day-plan-item').forEach(el => el.classList.remove('active'));
-
                     dayDiv.classList.add('active');
-
                 };
 
-                let activitiesHtml = dayPlan.activities.map(act => `<li class="ml-4 text-sm text-gray-600">${act.time}: ${act.name_zh} / ${act.name_en} - ${act.description_zh}</li>`).join('');
+                const activitiesHtml = dayPlan.activities.map(act => {
+                    const name = currentLang === 'zh' ? act.name_zh : act.name_en;
+                    const description = currentLang === 'zh' ? act.description_zh : act.description_en;
+                    return `<li class="ml-4 text-sm text-gray-600">${act.time}: ${name} - ${description}</li>`;
+                }).join('');
+
+                const title = currentLang === 'zh' ? dayPlan.title_zh : dayPlan.title_en;
+                const transport = currentLang === 'zh' ? dayPlan.transport_zh : dayPlan.transport_en;
+                const cost = currentLang === 'zh' ? dayPlan.estimatedCost_zh : dayPlan.estimatedCost_en;
+                const transportLabel = currentLang === 'zh' ? '交通建议' : 'Transport';
+                const costLabel = currentLang === 'zh' ? '预估花费' : 'Cost';
 
                 dayDiv.innerHTML = `
-
-                    <h3 class="font-bold text-lg text-blue-700">${currentLang === 'zh' ? `第 ${dayPlan.day} 天` : `Day ${dayPlan.day}`}: ${dayPlan.title_zh} / ${dayPlan.title_en}</h3>
-
+                    <h3 class="font-bold text-lg text-blue-700">${currentLang === 'zh' ? `第 ${dayPlan.day} 天` : `Day ${dayPlan.day}`}: ${title}</h3>
                     <ul class="list-disc list-inside mt-2">${activitiesHtml}</ul>
-
-                    <p class="text-xs mt-2 text-gray-500"><b data-lang-key="transportSuggestion">${currentLang === 'zh' ? '交通建议' : 'Transport'}:</b> ${dayPlan.transport_zh}</p>
-
-                    <p class="text-xs text-gray-500"><b data-lang-key="costEstimate">${currentLang === 'zh' ? '预估花费' : 'Cost'}:</b> ${dayPlan.estimatedCost_zh}</p>`;
-
+                    <p class="text-xs mt-2 text-gray-500"><b>${transportLabel}:</b> ${transport}</p>
+                    <p class="text-xs text-gray-500"><b>${costLabel}:</b> ${cost}</p>`;
+                
                 itineraryDetails.appendChild(dayDiv);
-
                 if (index === 0) dayDiv.click();
-
             });
-
         }
 
         function initItineraryMap() {
-
             if (itineraryMap) itineraryMap.remove();
-
             itineraryMap = L.map('itinerary-map').setView([47.6205, -122.3493], 13); // Default view
-
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(itineraryMap);
-
         }
 
         function stopItineraryMap() { 
-
             if (itineraryMap) { 
-
                 itineraryMap.remove(); 
-
                 itineraryMap = null; 
-
                 itineraryRoutingControl = null;
-
             } 
-
         }
 
         function drawItineraryRoute(activities) {
-
             if (!itineraryMap) return;
-
             if (itineraryRoutingControl) itineraryMap.removeControl(itineraryRoutingControl);
-
             itineraryMap.eachLayer(layer => { if (layer instanceof L.Marker) itineraryMap.removeLayer(layer); });
-
-
-
             const waypoints = activities.map(act => L.latLng(act.lat, act.lon));
-
-
-
             if (waypoints.length === 0) return;
-
-
-
-            // Manually set the map view to fit all waypoints for the day
-
             if (waypoints.length > 1) {
-
                 const bounds = L.latLngBounds(waypoints);
-
                 itineraryMap.fitBounds(bounds, { padding: [50, 50] });
-
             } else {
-
                 itineraryMap.setView(waypoints[0], 15);
-
             }
-
-            
-
-            // If there are at least two points, draw the route
-
             if (waypoints.length > 1) {
-
                  itineraryRoutingControl = L.Routing.control({
-
                     waypoints: waypoints,
-
                     routeWhileDragging: false, addWaypoints: false, draggableWaypoints: false, 
-
-                    fitSelectedRoutes: false, // We handle fit manually
-
+                    fitSelectedRoutes: false,
                     show: false,
-
                     lineOptions: { styles: [{color: 'green', opacity: 0.8, weight: 6}] },
-
                     createMarker: function(i, waypoint, n) {
-
                         return L.marker(waypoint.latLng).bindPopup(`${i+1}: ${activities[i]['name_'+currentLang]}`);
-
                     }
-
                 }).addTo(itineraryMap);
-
-            } else { // For a single point, just add a marker
-
+            } else {
                  L.marker(waypoints[0]).addTo(itineraryMap).bindPopup(activities[0]['name_'+currentLang]);
-
             }
-
         }
-
         
-
         // --- Init ---
-
         langZhBtn.addEventListener('click', () => setLanguage('zh'));
-
         langEnBtn.addEventListener('click', () => setLanguage('en'));
-
         navVisionBtn.addEventListener('click', () => showView('camera'));
-
         navExploreBtn.addEventListener('click', () => showView('map'));
-
         navPlannerBtn.addEventListener('click', () => showView('planner'));
-
         window.addEventListener('load', () => { setLanguage('zh'); showView('planner'); });
 
-
-
         // --- API Calls & Helpers ---
-
-        const API_KEY = "AIzaSyAYPqH91X9S3i7MOEBO9tPy7sKPAqBoZZc";
-
+        const API_KEY = "AIzaSyAYPqH91X9S3i7MOEBO9tPy7sKPAqBoZZc"; // IMPORTANT: Please replace with your own API key in a real application.
         function getDistance(coords1, coords2) { const R = 6371e3; const φ1 = coords1[0] * Math.PI/180; const φ2 = coords2[0] * Math.PI/180; const Δφ = (coords2[0]-coords1[0]) * Math.PI/180; const Δλ = (coords2[1]-coords1[1]) * Math.PI/180; const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2); const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c; }
-
         async function callGeminiVision(base64ImageData, lang) { const p = lang === 'zh' ? "请识别这张图片里的地标、古迹或著名景点。首先，用中文在第一行直接给出它的官方名称。然后，换行并提供一段适合导游讲解的、不超过150字的简洁介绍。如果无法识别为著名景点，请直接回答“无法识别为著名景点”。" : "Please identify the landmark, monument, or famous attraction in this image. First, provide its official name on the first line in English. Then, on a new line, provide a concise description of no more than 150 words, suitable for a tour guide. If you cannot identify a famous attraction, please respond with 'Could not identify a famous attraction'."; const a=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`; const r=await fetch(a,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:p},{inlineData:{mimeType:"image/jpeg",data:base64ImageData}}]}]})}); if(!r.ok){const e=await r.json().catch(()=>({error:{message:`HTTP error! status: ${r.status}`}}));throw new Error(e?.error?.message||`API Error: ${r.status}`)} const t=await r.json();if(!t.candidates||t.candidates.length===0){const e=t.promptFeedback?.blockReason;throw new Error(e?`Request blocked: ${e}`:"Invalid API response.")}return t.candidates[0].content.parts[0].text; }
-
         async function callGeminiTTS(text, lang) { const p = lang === 'zh' ? `用自然的导游语气说: ${text}` : `Say in a natural tour guide voice: ${text}`; const a=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${API_KEY}`; const r=await fetch(a,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:{responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:"Charon"}}}},model:"gemini-2.5-flash-preview-tts"})}); if(!r.ok){const e=await r.json().catch(()=>({error:{message:`HTTP error! status: ${r.status}`}}));throw new Error(e?.error?.message||`TTS API Error: ${r.status}`)} const t=await r.json(); const d=t.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data; if(!d)throw new Error("No audio data received."); return d; }
-
+        
+        // BUG FIX: MODIFIED callGeminiPlanner FUNCTION
         async function callGeminiPlanner(destination, duration, budget, interests, lang) {
-
-            const prompt = `为一次前往"${destination}"的旅行创建一个为期"${duration}"天的详细行程。预算水平为"${budget}"，旅行者的兴趣是"${interests}"。请为每一天提供一个主题标题。对于每一天的行程，请列出至少3个活动（景点或餐厅），并包含以下信息：建议的时间（例如 "09:00"），活动类型（"attraction" 或 "food"），中文名称，英文名称，简短的中、英文描述，以及精确的纬度(lat)和经度(lon)。最后，为每一天提供中、英文的交通建议和中、英文的预估花费。`;
+            const prompt_zh = `为一次前往"${destination}"的旅行创建一个为期"${duration}"天的详细行程。预算水平为"${budget}"，旅行者的兴趣是"${interests}"。请为每一天提供一个主题标题。对于每一天的行程，请列出至少3个活动（景点或餐厅），并包含以下信息：建议的时间（例如 "09:00"），活动类型（"attraction" 或 "food"），中文名称(name_zh)，英文名称(name_en)，简短的中文描述(description_zh)，简短的英文描述(description_en)，以及精确的纬度(lat)和经度(lon)。最后，为每一天提供中文的交通建议(transport_zh)，英文的交通建议(transport_en)，中文的预估花费(estimatedCost_zh)，和英文的预估花费(estimatedCost_en)。`;
+            const prompt_en = `Create a detailed ${duration}-day itinerary for a trip to "${destination}". The budget level is "${budget}" and the traveler's interests are "${interests}". Provide a theme title for each day. For each day's plan, list at least 3 activities (attractions or restaurants) including the following information: suggested time (e.g., "09:00"), activity type ("attraction" or "food"), Chinese name (name_zh), English name (name_en), a short description in Chinese (description_zh), a short description in English (description_en), and precise latitude (lat) and longitude (lon). Finally, for each day, provide a transportation suggestion in Chinese (transport_zh), a transportation suggestion in English (transport_en), an estimated cost in Chinese (estimatedCost_zh), and an estimated cost in English (estimatedCost_en).`;
+            const prompt = lang === 'zh' ? prompt_zh : prompt_en;
 
             const schema = {
-
                 type: "OBJECT",
-
                 properties: {
-
                     itinerary: {
-
                         type: "ARRAY",
-
                         items: {
-
                             type: "OBJECT",
-
                             properties: {
-
                                 day: { type: "NUMBER" },
-
                                 title_zh: { type: "STRING" },
-
                                 title_en: { type: "STRING" },
-
                                 activities: {
-
                                     type: "ARRAY",
-
                                     items: {
-
                                         type: "OBJECT",
-
                                         properties: {
-
                                             time: { type: "STRING" },
-
                                             type: { type: "STRING" },
-
                                             name_zh: { type: "STRING" },
-
                                             name_en: { type: "STRING" },
-
                                             description_zh: { type: "STRING" },
-
+                                            description_en: { type: "STRING" },
                                             lat: { type: "NUMBER" },
-
                                             lon: { type: "NUMBER" }
-
                                         },
-
-                                        required: ["time", "type", "name_zh", "name_en", "description_zh", "description_en","lat", "lon"]
-
+                                        required: ["time", "type", "name_zh", "name_en", "description_zh", "description_en", "lat", "lon"]
                                     }
-
                                 },
-
                                 transport_zh: { type: "STRING" },
-
-                                estimatedCost_zh: { type: "STRING" }
-
+                                transport_en: { type: "STRING" },
+                                estimatedCost_zh: { type: "STRING" },
+                                estimatedCost_en: { type: "STRING" }
                             },
-
-                            required: ["day", "title_zh", "title_en", "activities_zh", "activities_en", "transport_zh", "transport_en", "estimatedCost_zh", "estimatedCost_zh"]
-
+                            required: ["day", "title_zh", "title_en", "activities", "transport_zh", "transport_en", "estimatedCost_zh", "estimatedCost_en"]
                         }
-
                     }
-
                 },
-
                 required: ["itinerary"]
-
             };
-
             const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: schema } };
-
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
-
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-
             if (!response.ok) { const errorBody = await response.json().catch(() => ({ error: { message: `HTTP error! status: ${response.status}` } })); throw new Error(errorBody?.error?.message || `API Error: ${response.status}`); }
-
             const result = await response.json();
-
             const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
             if (!jsonText) throw new Error("Invalid API response format.");
-
             return JSON.parse(jsonText);
-
         }
-
         function parseAnalysis(text, lang) { const l=text.split('\n').filter(line => line.trim() !== ''); if (l.length > 0) return { title: l[0], description: l.slice(1).join('\n') || (lang === 'zh' ? "暂无详细介绍。" : "No detailed description available.") }; return { title: (lang === 'zh' ? "未知景点" : "Unknown Landmark"), description: text }; }
-
         function base64ToArrayBuffer(b64) { const s=window.atob(b64); const l=s.length; const B=new Uint8Array(l); for (let i=0; i<l; ++i) B[i]=s.charCodeAt(i); return B.buffer; }
-
         function pcmToWav(pcmData, sampleRate) { const h=new ArrayBuffer(44); const v=new DataView(h); const p=new Int16Array(pcmData); const w=(v,o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}; w(v,0,'RIFF');v.setUint32(4,36+p.length*2,!0);w(v,8,'WAVE');w(v,12,'fmt ');v.setUint32(16,16,!0);v.setUint16(20,1,!0);v.setUint16(22,1,!0);v.setUint32(24,sampleRate,!0);v.setUint32(28,sampleRate*2,!0);v.setUint16(32,2,!0);v.setUint16(34,16,!0);w(v,36,'data');v.setUint32(40,p.length*2,!0); return new Blob([h, p],{type:'audio/wav'});}
-
         async function playAudio(base64AudioData) { if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)(); const r=24000; const p=base64ToArrayBuffer(base64AudioData); const w=pcmToWav(p,r); const u=URL.createObjectURL(w); const a=new Audio(u); a.play(); a.onended = () => { playAudioBtn.disabled=false; playAudioBtnText.textContent=uiStrings.playBtn[currentLang]; URL.revokeObjectURL(u); }; }
-
     </script>
-
 </body>
-
-
 </html>
-
-
-
-
-
